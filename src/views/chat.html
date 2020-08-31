@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <!-- CSS only -->
+        <link
+            rel="stylesheet"
+            href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+            integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z"
+            crossorigin="anonymous"
+        />
+
+        <!-- JS, Popper.js, and jQuery -->
+        <script
+            src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+            integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+            crossorigin="anonymous"
+        ></script>
+        <script
+            src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+            integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN"
+            crossorigin="anonymous"
+        ></script>
+        <script
+            src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+            integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
+            crossorigin="anonymous"
+        ></script>
+        <title>Chat</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                position: relative;
+                width: 100vw;
+            }
+            ::-webkit-scrollbar {
+                width: 0;
+            }
+            .count {
+                position: absolute;
+                top: -20px;
+                right: 20px;
+                font-size: 12px;
+                color: #aaa;
+            }
+            .back {
+                position: absolute;
+                top: 10px;
+                left: 20px;
+                font-weight: bold;
+                font-size: 20px;
+                cursor: pointer;
+                transition: 250ms ease-in-out;
+                color: #222;
+            }
+            .back:hover {
+                text-decoration: none;
+                color: #999;
+            }
+            #messages {
+                display: flex;
+                flex-direction: column;
+                position: relative;
+                margin-bottom: 10px;
+            }
+            .message {
+                margin: 2.5px 0 10px auto;
+                max-width: 80%;
+                border-radius: 8px;
+                box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.3);
+            }
+            .message-user {
+                margin: 5px auto 10px 0;
+            }
+            .message .text {
+                display: block;
+                padding: 0 10px 2.5px;
+            }
+            .message .name {
+                color: #999;
+                padding: 2.5px 5px 0 5px;
+            }
+
+            .user-enter {
+                color: #999;
+                text-align: center;
+                margin: 5px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <a href="/" class="back">⟵</a>
+        <header class="text-center p-3">
+            <h4 class="font-weight-bold m-0" id="name"></h4>
+            <h5 class="text-muted">Room <span id="room"></span></h5>
+        </header>
+        <main
+            class="container position-relative d-flex justify-content-center align-content-center flex-column w-100"
+            style="max-width: 500px"
+        >
+            <p class="count">Users <span id="count"></span></p>
+            <div
+                class="overflow-auto shadow pt-3 pr-3 pl-3"
+                style="height: 65vh"
+                id="messages"
+            ></div>
+
+            <div class="d-flex mt-2 mb-2">
+                <input
+                    class="form-control"
+                    type="text"
+                    placeholder="Message"
+                    id="messageUser"
+                    style="
+                        border-top-right-radius: 0;
+                        border-bottom-right-radius: 0;
+                    "
+                />
+                <input
+                    type="button"
+                    class="btn btn-success"
+                    id="send"
+                    value="➤"
+                    style="
+                        border-top-left-radius: 0;
+                        border-bottom-left-radius: 0;
+                    "
+                />
+            </div>
+        </main>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            const { name, room } = getQuery();
+            const send = document.querySelector('#send');
+            const messages = document.querySelector('#messages');
+            const messageUser = document.querySelector('#messageUser');
+            const countUser = document.querySelector('#count');
+
+            const socket = io();
+
+            socket.on('connect', () => {
+                socket.emit('log', { name, room, count });
+                document.querySelector('#name').textContent = name;
+                document.querySelector('#room').textContent = room;
+                socket.on('count', (count) => {
+                    countUser.textContent = count;
+                    console.log(count);
+                });
+            });
+
+            socket.on('log', (name, count) => {
+                const div = document.createElement('div');
+                const date = new Date();
+                div.classList.add('user-enter', 'text-primary');
+                div.textContent = `${name} joined at ${date.getHours()}:${date.getMinutes()}`;
+                messages.append(div);
+                messages.scroll(0, messages.scrollHeight);
+                countUser.textContent = count;
+            });
+
+            socket.on('logout', (name, count) => {
+                const div = document.createElement('div');
+                const date = new Date();
+                div.classList.add('user-enter', 'text-danger');
+                div.textContent = `${name} left at ${date.getHours()}:${date.getMinutes()}`;
+                messages.append(div);
+                messages.scroll(0, messages.scrollHeight);
+                countUser.textContent = count;
+            });
+
+            socket.on('message', (name, message) => {
+                showMessage(message, name);
+            });
+
+            send.addEventListener('click', sendMessage);
+            messageUser.addEventListener('keypress', (e) => {
+                if (e.charCode === 13 && messageUser.value !== '') {
+                    sendMessage(e);
+                }
+            });
+            function sendMessage(e) {
+                if (messageUser.value !== '') {
+                    showMessage(messageUser.value);
+                    socket.emit('message', name, room, messageUser.value);
+                    messageUser.value = '';
+                }
+            }
+
+            function showMessage(message, name) {
+                const p = document.createElement('p');
+                p.classList.add('message');
+                if (!!name) {
+                    p.innerHTML = `<span class="name">${name}</span>`;
+                    p.classList.add('message-user');
+                }
+                p.innerHTML += `<span class="text">${message}<span>`;
+                messages.append(p);
+                messages.scroll(0, messages.scrollHeight);
+            }
+
+            function getQuery() {
+                const query = window.location.search.slice(1);
+                const params = query.split('&');
+                const name = params[0].split('=')[1].replace(/\W+\d+/g, ' ');
+                const room = params[1].split('=')[1];
+                return { name, room };
+            }
+        </script>
+    </body>
+</html>
